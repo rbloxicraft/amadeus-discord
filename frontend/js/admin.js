@@ -138,11 +138,16 @@ function addLog(e) {
   if (atBottom) box.scrollTop = box.scrollHeight;
 }
 
-let placesShown = false;
+/* serveurs, salons, présents : listes remplies dès qu'elles changent. Avant, une seule
+   fois : si la page s'ouvrait pendant le démarrage d'Amadeus (liste encore vide), les
+   menus restaient sur des identifiants bruts. */
+let placesKey = '';
 async function poll() {
   try {
     renderStatus(await api(`/api/discord/status?since=${logSize}`));
-    if (!placesShown && status.guilds) { refreshPlaces(); placesShown = true; }
+    const key = JSON.stringify([status.guilds || [], (status.members || []).map((m) => m.id)]);
+    const choosing = ['guild', 'channel', 'owner'].includes(document.activeElement?.id);
+    if (key !== placesKey && !choosing && settings) { refreshPlaces(); placesKey = key; }
   } catch { $('#conn').textContent = 'Backend arrêté'; $('#conn').className = 'pill off'; }
   setTimeout(poll, 1500);
 }
