@@ -1,0 +1,12 @@
+{
+  "_comment": "Extrait de reference par emotion, telecharges depuis le depot Hugging Face du modele (bysq/TTS-KurisuMakise) a l'installation. Les transcriptions sont faites sur place par Whisper (backend/tools/transcribe_refs.py).",
+  "repo": "bysq/TTS-KurisuMakise",
+  "refs": {
+    "neutral": "WAV/crs_0122.WAV_0000000000_0000161920.wav",
+    "joy": "WAV/crs_1656.WAV_0000000000_0000128640.wav",
+    "angry": "WAV/crs_0342.WAV_0000000000_0000186880.wav",
+    "sad": "WAV/crs_0309.WAV_0000137600_0000311680.wav",
+    "shy": "WAV/crs_2603.WAV_0000129600_0000256320.wav",
+    "surprised": "WAV/crs_0629.WAV_0000000000_0000157760.wav"
+  }
+}

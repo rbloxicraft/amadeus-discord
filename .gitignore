@@ -1,0 +1,36 @@
+# ============================================================
+#  Ce qui ne part JAMAIS sur GitHub
+# ============================================================
+
+# Tes cles API et tes donnees (memoire de Kurisu, reglages, journaux)
+backend/.env
+data/*
+!data/.gitkeep
+
+# Environnements Python et caches
+venv/
+__pycache__/
+*.pyc
+
+# Voix : moteur, modeles et extraits, telecharges par install.bat
+tts-server/GPT-SoVITS/
+tts-server/ffmpeg-shared/
+tts-server/kurisu/
+
+# Contenus non redistribuables, fournis par chacun (voir README)
+frontend/vendor/models/*.vrm
+frontend/vendor/sprites/
+frontend/vendor/brand/*.png
+*.wav
+
+# Divers
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# Bot Discord : token du compte et fichiers de test
+discord-bot/.env
+discord-bot/node_modules/
+discord-bot/*.wav
+discord-bot/*.mp4

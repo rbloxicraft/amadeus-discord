@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Amadeus Discord — configuration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="/css/admin.css?v=1" />
+</head>
+<body>
+  <header class="top">
+    <h1>AMADEUS <span>Discord</span></h1>
+    <p id="conn" class="pill off">Bot non lancé</p>
+  </header>
+
+  <main>
+    <!-- ───────── État + commandes ───────── -->
+    <section class="card wide" id="status-card">
+      <div class="status-grid">
+        <div>
+          <h2>État</h2>
+          <dl class="kv">
+            <dt>Compte</dt><dd id="st-user">—</dd>
+            <dt>Salon</dt><dd id="st-where">—</dd>
+            <dt>Présents</dt><dd id="st-members">—</dd>
+            <dt>Activité</dt><dd id="st-activity">—</dd>
+          </dl>
+          <div class="actions">
+            <button id="btn-join" class="primary">Rejoindre le salon</button>
+            <button id="btn-leave">Quitter</button>
+            <button id="btn-stream">Go Live</button>
+            <button id="btn-stop">Faire taire</button>
+          </div>
+          <form id="say-form" class="say">
+            <input id="say-input" placeholder="Dire quelque chose à Amadeus (comme si tu parlais en vocal)" autocomplete="off" />
+            <button class="primary">Envoyer</button>
+          </form>
+        </div>
+        <div class="preview">
+          <h2>Ce qui est diffusé</h2>
+          <div class="frame"><iframe id="preview" src="/stage" title="Aperçu de la scène" tabindex="-1"></iframe></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────── Journal ───────── -->
+    <section class="card" id="log-card">
+      <h2>En direct</h2>
+      <ol id="log"></ol>
+    </section>
+
+    <!-- ───────── Réglages ───────── -->
+    <section class="card" id="settings-card">
+      <h2>Réglages <small id="saved"></small></h2>
+      <form id="settings" autocomplete="off">
+        <fieldset>
+          <legend>Salon vocal</legend>
+          <label>Serveur <select name="guild_id" id="guild"></select></label>
+          <label>Salon <select name="voice_channel_id" id="channel"></select></label>
+          <label class="check"><input type="checkbox" name="auto_join" /> Rejoindre automatiquement au démarrage</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Quand elle répond</legend>
+          <label>Mode
+            <select name="reply_mode">
+              <option value="name">Quand on l'appelle par son nom</option>
+              <option value="owner">Seulement à moi (ou quand on l'appelle)</option>
+              <option value="everyone">À tout le monde</option>
+            </select>
+          </label>
+          <label>Mots qui l'appellent <input name="wake_words" placeholder="amadeus, kurisu" /></label>
+          <label>Suite de conversation (s) <small>après chacune de ses réponses, la même personne a ce temps pour continuer à lui parler sans la nommer</small> <input name="follow_seconds" type="number" min="0" max="120" /></label>
+          <label>Moi (propriétaire) <select name="owner_id" id="owner"></select></label>
+          <label class="check"><input type="checkbox" name="interruptible" /> L'appeler pendant qu'elle parle la coupe</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Modération</legend>
+          <label class="check"><input type="checkbox" name="moderation" /> Activée : 2 infractions en moins de 2 min = déconnexion du vocal ; si ça recommence après son retour = mute</label>
+          <label>Ban words (mots interdits) <small>pour tout le monde dans le vocal, même sans parler à Amadeus ; elle ne les dit jamais non plus. Les insultes envers elle comptent aussi.</small> <input name="ban_words" placeholder="mot1, mot2, expression interdite" /></label>
+          <label>Durée du mute (s) <input name="mute_seconds" type="number" min="10" max="3600" /></label>
+        </fieldset>
+        <fieldset>
+          <legend>Écoute et réponses</legend>
+          <label>Langue parlée
+            <select name="stt_language">
+              <option value="fr">Français</option>
+              <option value="en">Anglais</option>
+              <option value="auto">Détection automatique</option>
+            </select>
+          </label>
+          <label>Ville pour la météo <small>quand on lui demande la météo sans dire où</small> <input name="weather_city" placeholder="ex. Lyon" /></label>
+          <label>Phrases par réponse <input name="max_lines" type="number" min="1" max="4" /></label>
+          <label>Surnoms et mots à reconnaître <small>les pseudos des présents sont ajoutés tout seuls ; « surnom = pseudo » pour qui on appelle autrement</small> <input name="stt_words" placeholder="Max = Maxime_42 (PS5), Valorant" /></label>
+          <label>Durée minimale d'une phrase (s) <input name="min_speech_s" type="number" min="0.2" max="3" step="0.1" /></label>
+          <label>Réactivité : silence de fin de phrase (s) <small>plus court = répond plus vite, mais peut couper ceux qui hésitent</small> <input name="end_silence_s" type="number" min="0.25" max="1.5" step="0.05" /></label>
+          <label>Contexte retenu (répliques) <input name="context_lines" type="number" min="0" max="30" /></label>
+          <label>Volume de sa voix <input name="voice_volume" type="range" min="0.2" max="2" step="0.05" /></label>
+          <label>Cerveau <select id="brain"></select></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Stream (partage de la scène)</legend>
+          <label class="check"><input type="checkbox" name="stream_enabled" /> Diffuser l'avatar en rejoignant</label>
+          <label>Fond
+            <select name="background">
+              <option value="screen">Écran Amadeus</option>
+              <option value="lab">Grille du laboratoire</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" name="stream_subtitles" /> Sous-titres sur le stream</label>
+          <label class="check"><input type="checkbox" name="subtitle_japanese" /> Phrase japonaise sous la traduction</label>
+          <label class="check"><input type="checkbox" name="divergence" /> Compteur de divergence</label>
+          <label class="check"><input type="checkbox" name="view_2d" /> Avatar vu à plat (2D)</label>
+          <label>Taille de la scène <small>au prochain démarrage</small>
+            <select name="resolution">
+              <option value="1280x720">1280 × 720</option>
+              <option value="1920x1080">1920 × 1080</option>
+              <option value="854x480">854 × 480</option>
+            </select>
+          </label>
+        </fieldset>
+      </form>
+    </section>
+
+    <!-- ───────── Mémoire ───────── -->
+    <section class="card" id="memory-card">
+      <h2>Sa mémoire du serveur <small id="mem-count"></small></h2>
+      <p class="note">Séparée de ton Amadeus perso : ce qu'elle retient des gens du vocal.</p>
+      <textarea id="memory" spellcheck="false" placeholder="Rien pour l'instant."></textarea>
+      <div class="actions">
+        <button id="mem-save" class="primary">Enregistrer</button>
+        <button id="mem-wipe" class="danger">Tout effacer</button>
+      </div>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+  <script type="module" src="/js/admin.js?v=6"></script>
+</body>
+</html>

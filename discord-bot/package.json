@@ -1,0 +1,15 @@
+{
+  "name": "amadeus-discord-bot",
+  "private": true,
+  "type": "module",
+  "description": "Amadeus dans un salon vocal Discord : vrai client Discord (Edge) piloté par amadeus-client.mjs. Compte utilisateur automatisé : contraire aux conditions de Discord, à tes risques.",
+  "scripts": {
+    "start": "node amadeus-client.mjs"
+  },
+  "dependencies": {
+    "@lng2004/discord.js-selfbot-v13": "^3.7.2",
+    "dotenv": "^18.0.10",
+    "puppeteer-core": "^25.18.1",
+    "ws": "^8.23.0"
+  }
+}

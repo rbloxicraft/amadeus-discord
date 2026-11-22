@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <title>Amadeus</title>
+  <!-- L'importmap doit précéder TOUT chargement de module (y compris modulepreload),
+       sinon le navigateur l'ignore et plus aucun script ne démarre. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.1.4/lib/three-vrm.module.min.js"
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="/css/amadeus.css?v=29" />
+</head>
+<body>
+  <!-- Fond : grille du laboratoire + compteur de divergence (tubes nixie) -->
+  <div id="backdrop" aria-hidden="true">
+    <canvas id="screen-bg" hidden></canvas>
+    <div id="divergence">
+      <p class="dm-label">Divergence</p>
+      <div class="dm-device">
+        <div class="dm-tubes"></div>
+        <div class="dm-chassis"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <!-- halo des filaments : trait net + lueur proche + lueur large -->
+      <svg width="0" height="0" style="position:absolute">
+        <filter id="nixie-glow" x="-60%" y="-30%" width="220%" height="160%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.1" result="near" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3.6" result="far" />
+          <feMerge><feMergeNode in="far" /><feMergeNode in="far" /><feMergeNode in="near" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </svg>
+      <ol class="dm-history"></ol>
+    </div>
+  </div>
+
+  <!-- Démarrage : un clic est requis pour que le navigateur autorise la voix -->
+  <div id="boot" role="dialog" aria-label="Démarrage d'Amadeus">
+    <div class="boot-inner">
+      <img class="boot-logo" src="/vendor/brand/amadeus-logo.png" alt="Amadeus" />
+      <p class="boot-sub">Système de mémoire, Université Viktor Chondria</p>
+      <canvas id="boot-trace" aria-hidden="true"></canvas>
+      <p id="boot-status" aria-live="polite">Chargement des souvenirs…</p>
+      <button id="btn-connect" class="btn-primary" disabled>Se connecter</button>
+    </div>
+  </div>
+
+  <div id="app">
+    <canvas id="scene" aria-label="Kurisu, avatar 3D. Glisse pour tourner autour, molette pour zoomer."></canvas>
+    <div id="portrait" aria-hidden="true" hidden></div>
+
+    <header id="topbar">
+      <img class="top-logo" src="/vendor/brand/amadeus-logo.png" alt="Amadeus" />
+      <nav class="nav">
+        <button id="btn-transcript" class="nav-btn" aria-pressed="false" aria-controls="transcript">Conversation</button>
+        <button id="btn-memory" class="nav-btn" aria-controls="memory">Mémoire</button>
+        <button id="btn-avatar" class="nav-btn" aria-haspopup="menu" aria-expanded="false">Avatar</button>
+        <button id="btn-options" class="nav-btn" aria-haspopup="menu" aria-expanded="false">Réglages</button>
+      </nav>
+    </header>
+
+    <div id="avatar-menu" class="menu" role="menu" hidden>
+      <button role="menuitem" id="avatar-import">Importer un fichier .vrm</button>
+      <button role="menuitem" id="avatar-reset">Revenir à Kurisu</button>
+      <p class="menu-note">Tu peux aussi déposer un .vrm n'importe où sur la fenêtre.</p>
+      <hr class="menu-sep" />
+      <button role="menuitem" id="sprites-import">Importer des images 2D…</button>
+      <button role="menuitem" id="sprites-clear">Retirer les images 2D</button>
+      <p class="menu-note">Une image par expression, nommée <b>neutre</b>, <b>joie</b>, <b>colere</b>,
+        <b>triste</b>, <b>gene</b>, <b>surprise</b>. Ajoute <b>_parle</b> pour la bouche ouverte
+        (ex. <b>joie_parle.png</b>). PNG détouré conseillé.</p>
+    </div>
+    <input type="file" id="avatar-file" accept=".vrm" hidden />
+    <input type="file" id="sprites-file" accept="image/png,image/webp,image/jpeg,image/gif" multiple hidden />
+
+    <div id="options-menu" class="menu" role="menu" hidden>
+      <p class="menu-title">Cerveau</p>
+      <div id="brain-options" role="group" aria-label="Cerveau de Kurisu"></div>
+      <hr class="menu-sep" />
+      <p class="menu-title">Affichage</p>
+      <button role="menuitemcheckbox" id="opt-2d" aria-checked="false">
+        <span>Avatar en 2D<small id="opt-2d-note">Tes images 2D, sinon le modèle vu à plat</small></span><i class="switch"></i>
+      </button>
+      <button role="menuitemcheckbox" id="opt-screen" aria-checked="false">
+        <span>Fond écran Amadeus<small>Écran sombre, code pâle et éclats cyan</small></span><i class="switch"></i>
+      </button>
+      <button role="menuitemcheckbox" id="opt-divergence" aria-checked="true">
+        <span>Compteur de divergence<small>Change quand la ligne d'univers bouge</small></span><i class="switch"></i>
+      </button>
+    </div>
+
+    <div id="notices" aria-live="polite"></div>
+
+    <!-- Boîte de dialogue façon visual novel + trace de voix + saisie -->
+    <section id="dialogue">
+      <div id="subtitle" aria-live="polite">
+        <span class="nameplate">Kurisu</span>
+        <p class="sub-main"></p>
+        <p class="sub-ja" lang="ja"></p>
+      </div>
+      <canvas id="voice-trace" aria-hidden="true"></canvas>
+      <form id="composer" autocomplete="off">
+        <button type="button" id="btn-mic" aria-pressed="false" aria-label="Maintenir pour parler">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+        </button>
+        <input id="msg-input" type="text" placeholder="Écris à Kurisu, ou maintiens Espace pour parler" aria-label="Message pour Kurisu" />
+        <button type="submit" id="btn-send" class="btn-primary">Envoyer</button>
+      </form>
+    </section>
+
+    <!-- Fil de la conversation -->
+    <aside id="transcript" class="drawer" aria-label="Conversation" hidden>
+      <div class="drawer-head">
+        <h2>Conversation</h2>
+        <button class="icon-btn" data-close="transcript" aria-label="Fermer la conversation">✕</button>
+      </div>
+      <ol id="chat"></ol>
+    </aside>
+
+    <!-- Mémoire, éditable -->
+    <div id="scrim" hidden></div>
+    <aside id="memory" class="drawer drawer-modal" aria-label="Mémoire" hidden>
+      <div class="drawer-head">
+        <h2>Ce qu'elle retient de toi</h2>
+        <button class="icon-btn" data-close="memory" aria-label="Fermer la mémoire">✕</button>
+      </div>
+      <p id="memory-count" class="memory-count"></p>
+      <textarea id="memory-profile" spellcheck="false"
+        placeholder="Aucun souvenir pour l'instant. Parle avec elle pour qu'elle se souvienne de toi, ou écris ici ce qu'elle doit savoir."></textarea>
+      <p class="memory-note">Modifie librement ce texte puis enregistre. Toutes les 6 réponses, Kurisu y ajoute ce qu'elle a appris.</p>
+      <div class="memory-actions">
+        <button id="btn-memory-save" class="btn-primary">Enregistrer</button>
+        <button id="btn-memory-wipe" class="btn-danger">Tout effacer</button>
+      </div>
+    </aside>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Détection de la parole (mains libres) : Silero VAD dans le navigateur -->
+  <script defer src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.1/dist/ort.wasm.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.31/dist/bundle.min.js"></script>
+  <script type="module" src="/js/app.js?v=37"></script>
+</body>
+</html>

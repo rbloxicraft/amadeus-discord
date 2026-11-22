@@ -1,0 +1,8 @@
+Modele 3D de l'avatar (facultatif)
+
+Place ici ton modele VRM sous le nom kurisu.vrm (export VRoid Studio, par exemple),
+ou depose simplement un fichier .vrm sur la fenetre d'Amadeus : il est alors
+enregistre ici sous le nom current.vrm.
+
+Aucun modele n'est fourni avec le projet : les modeles de personnages ont leurs
+propres licences. Sans modele, un noyau holographique s'affiche a la place.

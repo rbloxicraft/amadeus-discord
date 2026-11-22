@@ -1,0 +1,99 @@
+diff --git a/GPT_SoVITS/TTS_infer_pack/TTS.py b/GPT_SoVITS/TTS_infer_pack/TTS.py
+index 7a7f200..dfcacef 100644
+--- a/GPT_SoVITS/TTS_infer_pack/TTS.py
++++ b/GPT_SoVITS/TTS_infer_pack/TTS.py
+@@ -853,8 +853,26 @@ class TTS:
+         Args:
+             ref_audio_path: str, the path of the reference audio.
+         """
+-        self._set_prompt_semantic(ref_audio_path)
+-        self._set_ref_spec(ref_audio_path)
++        # [AMADEUS] cache multi-références : Kurisu change de référence à chaque émotion ;
++        # sans ce cache, chaque changement recalcule ~1 s de caractéristiques (HuBERT, spectre).
++        store = self.__dict__.setdefault("_amadeus_ref_store", {})
++        hit = store.get(ref_audio_path)
++        if hit is None:
++            self._set_prompt_semantic(ref_audio_path)
++            self._set_ref_spec(ref_audio_path)
++            store[ref_audio_path] = (
++                self.prompt_cache["prompt_semantic"], self.prompt_cache["refer_spec"][0],
++                self.prompt_cache["raw_audio"], self.prompt_cache["raw_sr"],
++            )
++        else:
++            semantic, spec, raw_audio, raw_sr = hit
++            self.prompt_cache["prompt_semantic"] = semantic
++            if self.prompt_cache["refer_spec"] in [[], None]:
++                self.prompt_cache["refer_spec"] = [spec]
++            else:
++                self.prompt_cache["refer_spec"][0] = spec
++            self.prompt_cache["raw_audio"] = raw_audio
++            self.prompt_cache["raw_sr"] = raw_sr
+         self._set_ref_audio_path(ref_audio_path)
+ 
+     def _set_ref_audio_path(self, ref_audio_path):
+@@ -1301,9 +1319,14 @@ class TTS:
+                 prompt_text += "。" if prompt_lang != "en" else "."
+             print(i18n("实际输入的参考文本:"), prompt_text)
+             if self.prompt_cache["prompt_text"] != prompt_text:
+-                phones, bert_features, norm_text = self.text_preprocessor.segment_and_extract_feature_for_text(
+-                    prompt_text, prompt_lang, self.configs.version
+-                )
++                # [AMADEUS] mémorise aussi le traitement du texte de chaque référence
++                text_store = self.__dict__.setdefault("_amadeus_text_store", {})
++                key = (prompt_text, prompt_lang)
++                if key not in text_store:
++                    text_store[key] = self.text_preprocessor.segment_and_extract_feature_for_text(
++                        prompt_text, prompt_lang, self.configs.version
++                    )
++                phones, bert_features, norm_text = text_store[key]
+                 self.prompt_cache["prompt_text"] = prompt_text
+                 self.prompt_cache["prompt_lang"] = prompt_lang
+                 self.prompt_cache["phones"] = phones
+diff --git a/api_v2.py b/api_v2.py
+index 36891ed..0318eaa 100644
+--- a/api_v2.py
++++ b/api_v2.py
+@@ -229,6 +229,30 @@ _tts_pipeline_lock = asyncio.Lock()
+ _STREAM_END = object()
+ 
+ 
++class _GuardedStreamingResponse(StreamingResponse):
++    """[AMADEUS] Quand le client coupe la connexion (phrase interrompue), Starlette lève
++    ClientDisconnect sans fermer le générateur ni lancer la tâche de fond : le verrou du
++    pipeline restait pris jusqu'au passage du ramasse-miettes (parfois plusieurs minutes),
++    et toutes les phrases suivantes attendaient. Ici le nettoyage est garanti."""
++
++    def __init__(self, *args, on_close=None, **kwargs):
++        super().__init__(*args, **kwargs)
++        self._on_close = on_close
++
++    async def __call__(self, scope, receive, send):
++        try:
++            await super().__call__(scope, receive, send)
++        finally:
++            aclose = getattr(self.body_iterator, "aclose", None)
++            try:
++                if aclose is not None:
++                    await _await_shielded(aclose())
++            except Exception:
++                pass
++            if self._on_close is not None:
++                await self._on_close()
++
++
+ async def _await_shielded(awaitable):
+     task = asyncio.ensure_future(awaitable)
+     try:
+@@ -566,10 +590,11 @@ async def tts_handle(req: dict, raw_streaming_mode=None):
+                 finally:
+                     await cleanup_stream()
+ 
+-            response = StreamingResponse(
++            response = _GuardedStreamingResponse(
+                 streaming_generator(),
+                 media_type=f"audio/{media_type}",
+                 background=BackgroundTask(cleanup_stream),
++                on_close=cleanup_stream,
+             )
+             response_owns_lock = True
+             return response

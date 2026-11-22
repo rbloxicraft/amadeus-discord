@@ -1,0 +1,4 @@
+Logo (facultatif)
+
+Place ici une image amadeus-logo.png pour l'afficher sur l'ecran de demarrage et
+dans la barre du haut. Sans image, le nom AMADEUS s'affiche en texte.
