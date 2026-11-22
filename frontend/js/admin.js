@@ -112,6 +112,7 @@ function renderStatus(s) {
   $('#btn-stream').disabled = !bot || !status.connected;
   $('#btn-stream').textContent = settings?.stream_enabled ? 'Arrêter le stream' : 'Lancer le stream';
   $('#btn-stop').disabled = !bot || !(status.speaking || status.thinking);
+  if (s.log_size < logSize) $('#log').replaceChildren();   // backend relancé : journal repris de zéro
   for (const entry of s.log) addLog(entry);
   logSize = s.log_size;
 }

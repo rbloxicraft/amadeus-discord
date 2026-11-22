@@ -628,6 +628,7 @@ class _Hub:
         self.stages: set[WebSocket] = set()
         self.status: dict = {}
         self.log: list[dict] = []          # derniers échanges entendus / dits (page admin)
+        self.total = 0                     # nombre d'entrées depuis le démarrage
 
     async def send(self, targets: set[WebSocket], msg: dict) -> None:
         # un client qui ne lit plus (navigateur figé, orphelin) est abandonné au lieu de
@@ -644,7 +645,16 @@ class _Hub:
 
     def note(self, entry: dict) -> None:
         self.log.append(entry)
+        self.total += 1
         del self.log[:-200]
+
+    def since(self, n: int) -> list[dict]:
+        """Entrées après la n-ième (numérotation continue). Ne garder que les 200 dernières
+        ne doit pas figer la page : avant, la liste plafonnait à 200 et la page, qui
+        demandait « après la 200e », ne recevait plus rien."""
+        if n > self.total:                 # backend relancé pendant que la page était ouverte
+            return list(self.log)
+        return self.log[len(self.log) - min(self.total - n, len(self.log)):] if n < self.total else []
 
 
 _hub = _Hub()
@@ -720,8 +730,7 @@ async def discord_command(body: dict, request: Request):
 async def discord_status(request: Request, since: int = 0):
     _local_only(request)
     return {"bot_connected": bool(_hub.bots), "stage_connected": bool(_hub.stages),
-            "status": _hub.status, "log": _hub.log[since:] if since < len(_hub.log) else [],
-            "log_size": len(_hub.log)}
+            "status": _hub.status, "log": _hub.since(since), "log_size": _hub.total}
 
 
 @app.get("/stage")
